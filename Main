@@ -46,6 +46,8 @@ frame.BorderSizePixel = 0
 frame.Active = true
 frame.Draggable = true
 
+local UICorner = Instance.new("UICorner", frame)
+
 local title = Instance.new("TextLabel", frame)
 title.Size = UDim2.new(1, 0, 0, 30)
 title.BackgroundTransparency = 1
