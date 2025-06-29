@@ -1,0 +1,167 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+-- Fly state
+local flying = false
+local speed = 50
+local direction = Vector3.zero
+local dragging = false
+local dragOffset
+
+local control = {
+	W = false, A = false, S = false, D = false,
+	Space = false, Shift = false
+}
+
+-- Update move direction
+local function updateDirection()
+	local cam = workspace.CurrentCamera
+	local move = Vector3.zero
+
+	if control.W then move += cam.CFrame.LookVector end
+	if control.S then move -= cam.CFrame.LookVector end
+	if control.A then move -= cam.CFrame.RightVector end
+	if control.D then move += cam.CFrame.RightVector end
+	if control.Space then move += cam.CFrame.UpVector end
+	if control.Shift then move -= cam.CFrame.UpVector end
+
+	direction = move.Magnitude > 0 and move.Unit or Vector3.zero
+end
+
+-- Create UI
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.Name = "FlyPanel"
+gui.ResetOnSpawn = false
+
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0, 240, 0, 140)
+frame.Position = UDim2.new(0, 50, 0, 50)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, 0, 0, 30)
+title.BackgroundTransparency = 1
+title.Text = "Fly Utility"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.Font = Enum.Font.Code
+title.TextSize = 20
+
+-- Toggle Button
+local toggle = Instance.new("TextButton", frame)
+toggle.Size = UDim2.new(1, -20, 0, 30)
+toggle.Position = UDim2.new(0, 10, 0, 35)
+toggle.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+toggle.TextColor3 = Color3.fromRGB(0, 255, 0)
+toggle.Text = "Fly: OFF"
+toggle.Font = Enum.Font.Code
+toggle.TextSize = 18
+
+-- Speed Slider
+local sliderLabel = Instance.new("TextLabel", frame)
+sliderLabel.Size = UDim2.new(1, -20, 0, 20)
+sliderLabel.Position = UDim2.new(0, 10, 0, 75)
+sliderLabel.BackgroundTransparency = 1
+sliderLabel.Text = "Speed: 50"
+sliderLabel.TextColor3 = Color3.new(1, 1, 1)
+sliderLabel.Font = Enum.Font.Code
+sliderLabel.TextSize = 16
+
+local slider = Instance.new("TextButton", frame)
+slider.Size = UDim2.new(1, -20, 0, 10)
+slider.Position = UDim2.new(0, 10, 0, 100)
+slider.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+slider.BorderSizePixel = 0
+slider.AutoButtonColor = false
+slider.Text = ""
+
+local fill = Instance.new("Frame", slider)
+fill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+fill.Size = UDim2.new(0.5, 0, 1, 0)
+fill.BorderSizePixel = 0
+
+-- Dragging
+title.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+		dragOffset = input.Position - frame.Position
+	end
+end)
+
+UIS.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = false
+	end
+end)
+
+UIS.InputChanged:Connect(function(input)
+	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+		frame.Position = UDim2.new(0, input.Position.X - dragOffset.X, 0, input.Position.Y - dragOffset.Y)
+	end
+end)
+
+-- Input movement keys
+UIS.InputBegan:Connect(function(input, gpe)
+	if gpe then return end
+	local key = input.KeyCode
+	if key == Enum.KeyCode.W then control.W = true end
+	if key == Enum.KeyCode.A then control.A = true end
+	if key == Enum.KeyCode.S then control.S = true end
+	if key == Enum.KeyCode.D then control.D = true end
+	if key == Enum.KeyCode.Space then control.Space = true end
+	if key == Enum.KeyCode.LeftShift then control.Shift = true end
+	if key == Enum.KeyCode.F then
+		flying = not flying
+		toggle.Text = "Fly: " .. (flying and "ON" or "OFF")
+		if not flying then hrp.Anchored = false end
+	end
+	updateDirection()
+end)
+
+UIS.InputEnded:Connect(function(input)
+	local key = input.KeyCode
+	if key == Enum.KeyCode.W then control.W = false end
+	if key == Enum.KeyCode.A then control.A = false end
+	if key == Enum.KeyCode.S then control.S = false end
+	if key == Enum.KeyCode.D then control.D = false end
+	if key == Enum.KeyCode.Space then control.Space = false end
+	if key == Enum.KeyCode.LeftShift then control.Shift = false end
+	updateDirection()
+end)
+
+-- Toggle button
+toggle.MouseButton1Click:Connect(function()
+	flying = not flying
+	toggle.Text = "Fly: " .. (flying and "ON" or "OFF")
+	if not flying then hrp.Anchored = false end
+end)
+
+-- Speed slider
+slider.MouseButton1Down:Connect(function()
+	local conn
+	conn = UIS.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement then
+			local relX = math.clamp((input.Position.X - slider.AbsolutePosition.X) / slider.AbsoluteSize.X, 0, 1)
+			fill.Size = UDim2.new(relX, 0, 1, 0)
+			speed = math.floor(relX * 100)
+			sliderLabel.Text = "Speed: " .. tostring(speed)
+		end
+	end)
+	UIS.InputEnded:Wait()
+	conn:Disconnect()
+end)
+
+-- Fly movement loop
+RunService.RenderStepped:Connect(function(dt)
+	if flying then
+		hrp.Anchored = true
+		hrp.CFrame = hrp.CFrame + direction * speed * dt
+	end
+end)
