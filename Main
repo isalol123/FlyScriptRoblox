@@ -1,169 +1,201 @@
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local lp = Players.LocalPlayer
+local char = lp.Character or lp.CharacterAdded:Wait()
+local hrp = char:WaitForChild("HumanoidRootPart")
+local hum = char:WaitForChild("Humanoid")
 
-local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local hrp = character:WaitForChild("HumanoidRootPart")
-
--- Fly state
+-- Settings
 local flying = false
+local infiniteJump = false
 local speed = 50
 local direction = Vector3.zero
-local dragging = false
-local dragOffset
+local controls = {W=false,A=false,S=false,D=false,Space=false,Shift=false}
 
-local control = {
-	W = false, A = false, S = false, D = false,
-	Space = false, Shift = false
-}
-
--- Update move direction
-local function updateDirection()
-	local cam = workspace.CurrentCamera
-	local move = Vector3.zero
-
-	if control.W then move += cam.CFrame.LookVector end
-	if control.S then move -= cam.CFrame.LookVector end
-	if control.A then move -= cam.CFrame.RightVector end
-	if control.D then move += cam.CFrame.RightVector end
-	if control.Space then move += cam.CFrame.UpVector end
-	if control.Shift then move -= cam.CFrame.UpVector end
-
-	direction = move.Magnitude > 0 and move.Unit or Vector3.zero
-end
-
--- Create UI
-local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-gui.Name = "FlyPanel"
+-- GUI Setup
+local gui = Instance.new("ScreenGui", lp:WaitForChild("PlayerGui"))
+gui.Name = "SigmaUtility"
 gui.ResetOnSpawn = false
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 240, 0, 140)
+frame.Size = UDim2.new(0, 320, 0, 380)
 frame.Position = UDim2.new(0, 50, 0, 50)
-frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 frame.BorderSizePixel = 0
 frame.Active = true
 frame.Draggable = true
 
 local UICorner = Instance.new("UICorner", frame)
 
-local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.new(1, 0, 0, 30)
-title.BackgroundTransparency = 1
-title.Text = "Fly Utility"
-title.TextColor3 = Color3.new(1, 1, 1)
-title.Font = Enum.Font.Code
-title.TextSize = 20
+local function makeLabel(text, posY)
+	local lbl = Instance.new("TextLabel", frame)
+	lbl.Size = UDim2.new(1, -20, 0, 24)
+	lbl.Position = UDim2.new(0, 10, 0, posY)
+	lbl.BackgroundTransparency = 1
+	lbl.Text = text
+	lbl.TextColor3 = Color3.new(1,1,1)
+	lbl.Font = Enum.Font.Code
+	lbl.TextSize = 18
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	return lbl
+end
 
--- Toggle Button
-local toggle = Instance.new("TextButton", frame)
-toggle.Size = UDim2.new(1, -20, 0, 30)
-toggle.Position = UDim2.new(0, 10, 0, 35)
-toggle.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-toggle.TextColor3 = Color3.fromRGB(0, 255, 0)
-toggle.Text = "Fly: OFF"
-toggle.Font = Enum.Font.Code
-toggle.TextSize = 18
+local function makeButton(text, posY, callback)
+	local btn = Instance.new("TextButton", frame)
+	btn.Size = UDim2.new(1, -20, 0, 28)
+	btn.Position = UDim2.new(0, 10, 0, posY)
+	btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	btn.TextColor3 = Color3.fromRGB(0, 255, 0)
+	btn.Font = Enum.Font.Code
+	btn.TextSize = 16
+	btn.Text = text
+	btn.BorderSizePixel = 0
+	btn.MouseButton1Click:Connect(callback)
+	return btn
+end
 
--- Speed Slider
-local sliderLabel = Instance.new("TextLabel", frame)
-sliderLabel.Size = UDim2.new(1, -20, 0, 20)
-sliderLabel.Position = UDim2.new(0, 10, 0, 75)
-sliderLabel.BackgroundTransparency = 1
-sliderLabel.Text = "Speed: 50"
-sliderLabel.TextColor3 = Color3.new(1, 1, 1)
-sliderLabel.Font = Enum.Font.Code
-sliderLabel.TextSize = 16
+local function makeTextBox(placeholder, posY)
+	local tb = Instance.new("TextBox", frame)
+	tb.Size = UDim2.new(1, -20, 0, 28)
+	tb.Position = UDim2.new(0, 10, 0, posY)
+	tb.PlaceholderText = placeholder
+	tb.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	tb.TextColor3 = Color3.fromRGB(255, 255, 255)
+	tb.Font = Enum.Font.Code
+	tb.TextSize = 16
+	tb.BorderSizePixel = 0
+	return tb
+end
 
-local slider = Instance.new("TextButton", frame)
-slider.Size = UDim2.new(1, -20, 0, 10)
-slider.Position = UDim2.new(0, 10, 0, 100)
-slider.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-slider.BorderSizePixel = 0
-slider.AutoButtonColor = false
-slider.Text = ""
+local function makeSlider(label, posY, defaultVal, callback)
+	local lbl = makeLabel(label .. ": " .. defaultVal, posY)
+	local slider = Instance.new("TextButton", frame)
+	slider.Size = UDim2.new(1, -20, 0, 10)
+	slider.Position = UDim2.new(0, 10, 0, posY + 22)
+	slider.BackgroundColor3 = Color3.fromRGB(50,50,50)
+	slider.Text = ""
+	slider.BorderSizePixel = 0
+	local fill = Instance.new("Frame", slider)
+	fill.BackgroundColor3 = Color3.fromRGB(0,255,0)
+	fill.Size = UDim2.new(defaultVal/100,0,1,0)
+	fill.BorderSizePixel = 0
 
-local fill = Instance.new("Frame", slider)
-fill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-fill.Size = UDim2.new(0.5, 0, 1, 0)
-fill.BorderSizePixel = 0
+	slider.MouseButton1Down:Connect(function()
+		local conn
+		conn = UIS.InputChanged:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseMovement then
+				local rel = math.clamp((input.Position.X - slider.AbsolutePosition.X) / slider.AbsoluteSize.X, 0, 1)
+				fill.Size = UDim2.new(rel, 0, 1, 0)
+				local val = math.floor(rel * 100)
+				lbl.Text = label .. ": " .. tostring(val)
+				callback(val)
+			end
+		end)
+		UIS.InputEnded:Wait()
+		conn:Disconnect()
+	end)
+end
 
--- Dragging
-title.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		dragging = true
-		dragOffset = input.Position - frame.Position
-	end
-end)
-
-UIS.InputEnded:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		dragging = false
-	end
-end)
-
-UIS.InputChanged:Connect(function(input)
-	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-		frame.Position = UDim2.new(0, input.Position.X - dragOffset.X, 0, input.Position.Y - dragOffset.Y)
-	end
-end)
-
--- Input movement keys
-UIS.InputBegan:Connect(function(input, gpe)
-	if gpe then return end
-	local key = input.KeyCode
-	if key == Enum.KeyCode.W then control.W = true end
-	if key == Enum.KeyCode.A then control.A = true end
-	if key == Enum.KeyCode.S then control.S = true end
-	if key == Enum.KeyCode.D then control.D = true end
-	if key == Enum.KeyCode.Space then control.Space = true end
-	if key == Enum.KeyCode.LeftShift then control.Shift = true end
-	if key == Enum.KeyCode.F then
-		flying = not flying
-		toggle.Text = "Fly: " .. (flying and "ON" or "OFF")
-		if not flying then hrp.Anchored = false end
-	end
-	updateDirection()
-end)
-
-UIS.InputEnded:Connect(function(input)
-	local key = input.KeyCode
-	if key == Enum.KeyCode.W then control.W = false end
-	if key == Enum.KeyCode.A then control.A = false end
-	if key == Enum.KeyCode.S then control.S = false end
-	if key == Enum.KeyCode.D then control.D = false end
-	if key == Enum.KeyCode.Space then control.Space = false end
-	if key == Enum.KeyCode.LeftShift then control.Shift = false end
-	updateDirection()
-end)
-
--- Toggle button
-toggle.MouseButton1Click:Connect(function()
+-- Fly
+makeButton("Toggle Fly (F)", 10, function()
 	flying = not flying
-	toggle.Text = "Fly: " .. (flying and "ON" or "OFF")
 	if not flying then hrp.Anchored = false end
 end)
 
--- Speed slider
-slider.MouseButton1Down:Connect(function()
-	local conn
-	conn = UIS.InputChanged:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseMovement then
-			local relX = math.clamp((input.Position.X - slider.AbsolutePosition.X) / slider.AbsoluteSize.X, 0, 1)
-			fill.Size = UDim2.new(relX, 0, 1, 0)
-			speed = math.floor(relX * 100)
-			sliderLabel.Text = "Speed: " .. tostring(speed)
-		end
-	end)
-	UIS.InputEnded:Wait()
-	conn:Disconnect()
+-- Speed Slider
+makeSlider("Fly Speed", 45, speed, function(val) speed = val end)
+
+-- Infinite Jump
+makeButton("Toggle Infinite Jump", 85, function()
+	infiniteJump = not infiniteJump
 end)
 
--- Fly movement loop
+-- WalkSpeed
+makeSlider("WalkSpeed", 125, 16, function(val) hum.WalkSpeed = val end)
+
+-- JumpPower
+makeSlider("JumpPower", 165, 50, function(val) hum.JumpPower = val end)
+
+-- Fling
+local flingBox = makeTextBox("Fling Username", 205)
+makeButton("Fling", 240, function()
+	local target = Players:FindFirstChild(flingBox.Text)
+	if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+		for _ = 1, 50 do
+			task.spawn(function()
+				hrp.CFrame = target.Character.HumanoidRootPart.CFrame + Vector3.new(0, 2, 0)
+				hrp.Velocity = Vector3.new(9e5, 9e5, 9e5)
+			end)
+			task.wait()
+		end
+	end
+end)
+
+-- Teleport
+local tpBox = makeTextBox("Teleport to Username", 280)
+makeButton("Teleport", 315, function()
+	local target = Players:FindFirstChild(tpBox.Text)
+	if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+		hrp.CFrame = target.Character.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
+	end
+end)
+
+-- Direction Update
+local function updateDirection()
+	local cam = workspace.CurrentCamera
+	local move = Vector3.zero
+	if controls.W then move += cam.CFrame.LookVector end
+	if controls.S then move -= cam.CFrame.LookVector end
+	if controls.A then move -= cam.CFrame.RightVector end
+	if controls.D then move += cam.CFrame.RightVector end
+	if controls.Space then move += cam.CFrame.UpVector end
+	if controls.Shift then move -= cam.CFrame.UpVector end
+	direction = move.Magnitude > 0 and move.Unit or Vector3.zero
+end
+
+-- Input Handling
+UIS.InputBegan:Connect(function(i, gpe)
+	if gpe then return end
+	if i.KeyCode == Enum.KeyCode.W then controls.W = true end
+	if i.KeyCode == Enum.KeyCode.A then controls.A = true end
+	if i.KeyCode == Enum.KeyCode.S then controls.S = true end
+	if i.KeyCode == Enum.KeyCode.D then controls.D = true end
+	if i.KeyCode == Enum.KeyCode.Space then controls.Space = true end
+	if i.KeyCode == Enum.KeyCode.LeftShift then controls.Shift = true end
+	if i.KeyCode == Enum.KeyCode.F then flying = not flying if not flying then hrp.Anchored = false end end
+	if i.KeyCode == Enum.KeyCode.RightShift then frame.Visible = not frame.Visible end
+	updateDirection()
+end)
+
+UIS.InputEnded:Connect(function(i)
+	if i.KeyCode == Enum.KeyCode.W then controls.W = false end
+	if i.KeyCode == Enum.KeyCode.A then controls.A = false end
+	if i.KeyCode == Enum.KeyCode.S then controls.S = false end
+	if i.KeyCode == Enum.KeyCode.D then controls.D = false end
+	if i.KeyCode == Enum.KeyCode.Space then controls.Space = false end
+	if i.KeyCode == Enum.KeyCode.LeftShift then controls.Shift = false end
+	updateDirection()
+end)
+
+-- Infinite Jump
+lp.CharacterAdded:Connect(function(c)
+	c:WaitForChild("Humanoid")
+	char = c
+	hrp = c:WaitForChild("HumanoidRootPart")
+	hum = c:WaitForChild("Humanoid")
+end)
+
+UIS.JumpRequest:Connect(function()
+	if infiniteJump then
+		hrp.Velocity = Vector3.new(0, hum.JumpPower, 0)
+	end
+end)
+
+-- Fly loop
 RunService.RenderStepped:Connect(function(dt)
 	if flying then
 		hrp.Anchored = true
-		hrp.CFrame = hrp.CFrame + direction * speed * dt
+		hrp.CFrame += direction * speed * dt
 	end
 end)
