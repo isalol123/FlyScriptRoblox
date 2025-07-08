@@ -1,3 +1,5 @@
+-- SigmaUtility GUI with advanced SkidFling and unlimited sliders
+
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -19,14 +21,14 @@ gui.Name = "SigmaUtility"
 gui.ResetOnSpawn = false
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 320, 0, 380)
+frame.Size = UDim2.new(0, 320, 0, 420)
 frame.Position = UDim2.new(0, 50, 0, 50)
 frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 frame.BorderSizePixel = 0
 frame.Active = true
 frame.Draggable = true
 
-local UICorner = Instance.new("UICorner", frame)
+Instance.new("UICorner", frame)
 
 local function makeLabel(text, posY)
 	local lbl = Instance.new("TextLabel", frame)
@@ -70,30 +72,14 @@ end
 
 local function makeSlider(label, posY, defaultVal, callback)
 	local lbl = makeLabel(label .. ": " .. defaultVal, posY)
-	local slider = Instance.new("TextButton", frame)
-	slider.Size = UDim2.new(1, -20, 0, 10)
-	slider.Position = UDim2.new(0, 10, 0, posY + 22)
-	slider.BackgroundColor3 = Color3.fromRGB(50,50,50)
-	slider.Text = ""
-	slider.BorderSizePixel = 0
-	local fill = Instance.new("Frame", slider)
-	fill.BackgroundColor3 = Color3.fromRGB(0,255,0)
-	fill.Size = UDim2.new(defaultVal/100,0,1,0)
-	fill.BorderSizePixel = 0
-
-	slider.MouseButton1Down:Connect(function()
-		local conn
-		conn = UIS.InputChanged:Connect(function(input)
-			if input.UserInputType == Enum.UserInputType.MouseMovement then
-				local rel = math.clamp((input.Position.X - slider.AbsolutePosition.X) / slider.AbsoluteSize.X, 0, 1)
-				fill.Size = UDim2.new(rel, 0, 1, 0)
-				local val = math.floor(rel * 100)
-				lbl.Text = label .. ": " .. tostring(val)
-				callback(val)
-			end
-		end)
-		UIS.InputEnded:Wait()
-		conn:Disconnect()
+	local input = makeTextBox("Any number", posY + 22)
+	input.Text = tostring(defaultVal)
+	input.FocusLost:Connect(function()
+		local num = tonumber(input.Text)
+		if num then
+			lbl.Text = label .. ": " .. tostring(num)
+			callback(num)
+		end
 	end)
 end
 
@@ -103,7 +89,7 @@ makeButton("Toggle Fly (F)", 10, function()
 	if not flying then hrp.Anchored = false end
 end)
 
--- Speed Slider
+-- Speed
 makeSlider("Fly Speed", 45, speed, function(val) speed = val end)
 
 -- Infinite Jump
@@ -112,24 +98,56 @@ makeButton("Toggle Infinite Jump", 85, function()
 end)
 
 -- WalkSpeed
-makeSlider("WalkSpeed", 125, 16, function(val) hum.WalkSpeed = val end)
+makeSlider("WalkSpeed", 125, hum.WalkSpeed, function(val) hum.WalkSpeed = val end)
 
 -- JumpPower
-makeSlider("JumpPower", 165, 50, function(val) hum.JumpPower = val end)
+makeSlider("JumpPower", 165, hum.JumpPower, function(val) hum.JumpPower = val end)
 
 -- Fling
 local flingBox = makeTextBox("Fling Username", 205)
 makeButton("Fling", 240, function()
-	local target = Players:FindFirstChild(flingBox.Text)
-	if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-		for _ = 1, 50 do
-			task.spawn(function()
-				hrp.CFrame = target.Character.HumanoidRootPart.CFrame + Vector3.new(0, 2, 0)
-				hrp.Velocity = Vector3.new(9e5, 9e5, 9e5)
-			end)
+	local function Message(_Title, _Text, Time)
+		game:GetService("StarterGui"):SetCore("SendNotification", {Title = _Title, Text = _Text, Duration = Time})
+	end
+
+	local function GetPlayer(Name)
+		Name = Name:lower()
+		for _, x in next, Players:GetPlayers() do
+			if x ~= lp then
+				if x.Name:lower():match("^" .. Name) or x.DisplayName:lower():match("^" .. Name) then
+					return x
+				end
+			end
+		end
+		return nil
+	end
+
+	local targetPlayer = GetPlayer(flingBox.Text)
+	if not targetPlayer then return Message("Fling", "Player not found", 3) end
+
+	local function SkidFling(TargetPlayer)
+		local Character = lp.Character
+		local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+		local RootPart = Humanoid and Humanoid.RootPart
+		local TCharacter = TargetPlayer.Character
+		local TRoot = TCharacter and TCharacter:FindFirstChild("HumanoidRootPart")
+		if not (Character and Humanoid and RootPart and TRoot) then return end
+		getgenv().OldPos = RootPart.CFrame
+		workspace.CurrentCamera.CameraSubject = TRoot
+		local BV = Instance.new("BodyVelocity", RootPart)
+		BV.Velocity = Vector3.new(9e8, 9e8, 9e8)
+		BV.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+		for i = 1, 50 do
+			RootPart.CFrame = TRoot.CFrame + Vector3.new(0, 1.5, 0)
+			RootPart.Velocity = Vector3.new(9e7, 9e7, 9e7)
+			RootPart.RotVelocity = Vector3.new(9e8, 9e8, 9e8)
 			task.wait()
 		end
+		BV:Destroy()
+		workspace.CurrentCamera.CameraSubject = Humanoid
 	end
+
+	SkidFling(targetPlayer)
 end)
 
 -- Teleport
