@@ -3,6 +3,7 @@
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+
 local lp = Players.LocalPlayer
 local char = lp.Character or lp.CharacterAdded:Wait()
 local hrp = char:WaitForChild("HumanoidRootPart")
@@ -13,7 +14,7 @@ local flying = false
 local infiniteJump = false
 local speed = 50
 local direction = Vector3.zero
-local controls = {W=false,A=false,S=false,D=false,Space=false,Shift=false}
+local controls = {W=false, A=false, S=false, D=false, Space=false, Shift=false}
 
 -- GUI Setup
 local gui = Instance.new("ScreenGui", lp:WaitForChild("PlayerGui"))
@@ -21,199 +22,196 @@ gui.Name = "SigmaUtility"
 gui.ResetOnSpawn = false
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 320, 0, 420)
+frame.Size = UDim2.new(0, 320, 0, 500)
 frame.Position = UDim2.new(0, 50, 0, 50)
 frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 frame.BorderSizePixel = 0
 frame.Active = true
 frame.Draggable = true
-
 Instance.new("UICorner", frame)
 
-local function makeLabel(text, posY)
-	local lbl = Instance.new("TextLabel", frame)
-	lbl.Size = UDim2.new(1, -20, 0, 24)
-	lbl.Position = UDim2.new(0, 10, 0, posY)
-	lbl.BackgroundTransparency = 1
-	lbl.Text = text
-	lbl.TextColor3 = Color3.new(1,1,1)
-	lbl.Font = Enum.Font.Code
-	lbl.TextSize = 18
-	lbl.TextXAlignment = Enum.TextXAlignment.Left
-	return lbl
+local spacing = 40
+local y = 10
+
+local function nextY()
+    local oldY = y
+    y += spacing
+    return oldY
 end
 
-local function makeButton(text, posY, callback)
-	local btn = Instance.new("TextButton", frame)
-	btn.Size = UDim2.new(1, -20, 0, 28)
-	btn.Position = UDim2.new(0, 10, 0, posY)
-	btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-	btn.TextColor3 = Color3.fromRGB(0, 255, 0)
-	btn.Font = Enum.Font.Code
-	btn.TextSize = 16
-	btn.Text = text
-	btn.BorderSizePixel = 0
-	btn.MouseButton1Click:Connect(callback)
-	return btn
+local function makeLabel(text)
+    local lbl = Instance.new("TextLabel", frame)
+    lbl.Size = UDim2.new(1, -20, 0, 24)
+    lbl.Position = UDim2.new(0, 10, 0, nextY())
+    lbl.BackgroundTransparency = 1
+    lbl.Text = text
+    lbl.TextColor3 = Color3.new(1, 1, 1)
+    lbl.Font = Enum.Font.Code
+    lbl.TextSize = 18
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    return lbl
 end
 
-local function makeTextBox(placeholder, posY)
-	local tb = Instance.new("TextBox", frame)
-	tb.Size = UDim2.new(1, -20, 0, 28)
-	tb.Position = UDim2.new(0, 10, 0, posY)
-	tb.PlaceholderText = placeholder
-	tb.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-	tb.TextColor3 = Color3.fromRGB(255, 255, 255)
-	tb.Font = Enum.Font.Code
-	tb.TextSize = 16
-	tb.BorderSizePixel = 0
-	return tb
+local function makeButton(text, callback)
+    local btn = Instance.new("TextButton", frame)
+    btn.Size = UDim2.new(1, -20, 0, 28)
+    btn.Position = UDim2.new(0, 10, 0, nextY())
+    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    btn.TextColor3 = Color3.fromRGB(0, 255, 0)
+    btn.Font = Enum.Font.Code
+    btn.TextSize = 16
+    btn.Text = text
+    btn.BorderSizePixel = 0
+    btn.MouseButton1Click:Connect(callback)
+    return btn
 end
 
-local function makeSlider(label, posY, defaultVal, callback)
-	local lbl = makeLabel(label .. ": " .. defaultVal, posY)
-	local input = makeTextBox("Any number", posY + 22)
-	input.Text = tostring(defaultVal)
-	input.FocusLost:Connect(function()
-		local num = tonumber(input.Text)
-		if num then
-			lbl.Text = label .. ": " .. tostring(num)
-			callback(num)
-		end
-	end)
+local function makeTextBox(placeholder)
+    local tb = Instance.new("TextBox", frame)
+    tb.Size = UDim2.new(1, -20, 0, 28)
+    tb.Position = UDim2.new(0, 10, 0, nextY())
+    tb.PlaceholderText = placeholder
+    tb.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    tb.TextColor3 = Color3.fromRGB(255, 255, 255)
+    tb.Font = Enum.Font.Code
+    tb.TextSize = 16
+    tb.BorderSizePixel = 0
+    return tb
 end
 
--- Fly
-makeButton("Toggle Fly (F)", 10, function()
-	flying = not flying
-	if not flying then hrp.Anchored = false end
+local function makeSlider(label, defaultVal, callback)
+    local lbl = makeLabel(label .. ": " .. defaultVal)
+    local input = makeTextBox("Any number")
+    input.Text = tostring(defaultVal)
+    input.FocusLost:Connect(function()
+        local num = tonumber(input.Text)
+        if num then
+            lbl.Text = label .. ": " .. tostring(num)
+            callback(num)
+        end
+    end)
+end
+
+makeButton("Toggle Fly (F)", function()
+    flying = not flying
+    if not flying then hrp.Anchored = false end
 end)
 
--- Speed
-makeSlider("Fly Speed", 45, speed, function(val) speed = val end)
+makeSlider("Fly Speed", speed, function(val) speed = val end)
 
--- Infinite Jump
-makeButton("Toggle Infinite Jump", 85, function()
-	infiniteJump = not infiniteJump
+makeButton("Toggle Infinite Jump", function()
+    infiniteJump = not infiniteJump
 end)
 
--- WalkSpeed
-makeSlider("WalkSpeed", 125, hum.WalkSpeed, function(val) hum.WalkSpeed = val end)
+makeSlider("WalkSpeed", hum.WalkSpeed, function(val) hum.WalkSpeed = val end)
 
--- JumpPower
-makeSlider("JumpPower", 165, hum.JumpPower, function(val) hum.JumpPower = val end)
+makeSlider("JumpPower", hum.JumpPower, function(val) hum.JumpPower = val end)
 
--- Fling
-local flingBox = makeTextBox("Fling Username", 205)
-makeButton("Fling", 240, function()
-	local function Message(_Title, _Text, Time)
-		game:GetService("StarterGui"):SetCore("SendNotification", {Title = _Title, Text = _Text, Duration = Time})
-	end
+local flingBox = makeTextBox("Fling Username")
+makeButton("Fling", function()
+    local function Message(_Title, _Text, Time)
+        game:GetService("StarterGui"):SetCore("SendNotification", {Title = _Title, Text = _Text, Duration = Time})
+    end
 
-	local function GetPlayer(Name)
-		Name = Name:lower()
-		for _, x in next, Players:GetPlayers() do
-			if x ~= lp then
-				if x.Name:lower():match("^" .. Name) or x.DisplayName:lower():match("^" .. Name) then
-					return x
-				end
-			end
-		end
-		return nil
-	end
+    local function GetPlayer(Name)
+        Name = Name:lower()
+        for _, x in next, Players:GetPlayers() do
+            if x ~= lp then
+                if x.Name:lower():match("^" .. Name) or x.DisplayName:lower():match("^" .. Name) then
+                    return x
+                end
+            end
+        end
+        return nil
+    end
 
-	local targetPlayer = GetPlayer(flingBox.Text)
-	if not targetPlayer then return Message("Fling", "Player not found", 3) end
+    local targetPlayer = GetPlayer(flingBox.Text)
+    if not targetPlayer then return Message("Fling", "Player not found", 3) end
 
-	local function SkidFling(TargetPlayer)
-		local Character = lp.Character
-		local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
-		local RootPart = Humanoid and Humanoid.RootPart
-		local TCharacter = TargetPlayer.Character
-		local TRoot = TCharacter and TCharacter:FindFirstChild("HumanoidRootPart")
-		if not (Character and Humanoid and RootPart and TRoot) then return end
-		getgenv().OldPos = RootPart.CFrame
-		workspace.CurrentCamera.CameraSubject = TRoot
-		local BV = Instance.new("BodyVelocity", RootPart)
-		BV.Velocity = Vector3.new(9e8, 9e8, 9e8)
-		BV.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-		for i = 1, 50 do
-			RootPart.CFrame = TRoot.CFrame + Vector3.new(0, 1.5, 0)
-			RootPart.Velocity = Vector3.new(9e7, 9e7, 9e7)
-			RootPart.RotVelocity = Vector3.new(9e8, 9e8, 9e8)
-			task.wait()
-		end
-		BV:Destroy()
-		workspace.CurrentCamera.CameraSubject = Humanoid
-	end
+    local function SkidFling(TargetPlayer)
+        local Character = lp.Character
+        local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+        local RootPart = Humanoid and Humanoid.RootPart
+        local TCharacter = TargetPlayer.Character
+        local TRoot = TCharacter and TCharacter:FindFirstChild("HumanoidRootPart")
+        if not (Character and Humanoid and RootPart and TRoot) then return end
+        getgenv().OldPos = RootPart.CFrame
+        workspace.CurrentCamera.CameraSubject = TRoot
+        local BV = Instance.new("BodyVelocity", RootPart)
+        BV.Velocity = Vector3.new(9e8, 9e8, 9e8)
+        BV.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        for i = 1, 50 do
+            RootPart.CFrame = TRoot.CFrame + Vector3.new(0, 1.5, 0)
+            RootPart.Velocity = Vector3.new(9e7, 9e7, 9e7)
+            RootPart.RotVelocity = Vector3.new(9e8, 9e8, 9e8)
+            task.wait()
+        end
+        BV:Destroy()
+        workspace.CurrentCamera.CameraSubject = Humanoid
+    end
 
-	SkidFling(targetPlayer)
+    SkidFling(targetPlayer)
 end)
 
--- Teleport
-local tpBox = makeTextBox("Teleport to Username", 280)
-makeButton("Teleport", 315, function()
-	local target = Players:FindFirstChild(tpBox.Text)
-	if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-		hrp.CFrame = target.Character.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
-	end
+local tpBox = makeTextBox("Teleport to Username")
+makeButton("Teleport", function()
+    local target = Players:FindFirstChild(tpBox.Text)
+    if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+        hrp.CFrame = target.Character.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
+    end
 end)
 
--- Direction Update
 local function updateDirection()
-	local cam = workspace.CurrentCamera
-	local move = Vector3.zero
-	if controls.W then move += cam.CFrame.LookVector end
-	if controls.S then move -= cam.CFrame.LookVector end
-	if controls.A then move -= cam.CFrame.RightVector end
-	if controls.D then move += cam.CFrame.RightVector end
-	if controls.Space then move += cam.CFrame.UpVector end
-	if controls.Shift then move -= cam.CFrame.UpVector end
-	direction = move.Magnitude > 0 and move.Unit or Vector3.zero
+    local cam = workspace.CurrentCamera
+    local move = Vector3.zero
+    if controls.W then move += cam.CFrame.LookVector end
+    if controls.S then move -= cam.CFrame.LookVector end
+    if controls.A then move -= cam.CFrame.RightVector end
+    if controls.D then move += cam.CFrame.RightVector end
+    if controls.Space then move += cam.CFrame.UpVector end
+    if controls.Shift then move -= cam.CFrame.UpVector end
+    direction = move.Magnitude > 0 and move.Unit or Vector3.zero
 end
 
--- Input Handling
 UIS.InputBegan:Connect(function(i, gpe)
-	if gpe then return end
-	if i.KeyCode == Enum.KeyCode.W then controls.W = true end
-	if i.KeyCode == Enum.KeyCode.A then controls.A = true end
-	if i.KeyCode == Enum.KeyCode.S then controls.S = true end
-	if i.KeyCode == Enum.KeyCode.D then controls.D = true end
-	if i.KeyCode == Enum.KeyCode.Space then controls.Space = true end
-	if i.KeyCode == Enum.KeyCode.LeftShift then controls.Shift = true end
-	if i.KeyCode == Enum.KeyCode.F then flying = not flying if not flying then hrp.Anchored = false end end
-	if i.KeyCode == Enum.KeyCode.RightShift then frame.Visible = not frame.Visible end
-	updateDirection()
+    if gpe then return end
+    if i.KeyCode == Enum.KeyCode.W then controls.W = true end
+    if i.KeyCode == Enum.KeyCode.A then controls.A = true end
+    if i.KeyCode == Enum.KeyCode.S then controls.S = true end
+    if i.KeyCode == Enum.KeyCode.D then controls.D = true end
+    if i.KeyCode == Enum.KeyCode.Space then controls.Space = true end
+    if i.KeyCode == Enum.KeyCode.LeftShift then controls.Shift = true end
+    if i.KeyCode == Enum.KeyCode.F then flying = not flying if not flying then hrp.Anchored = false end end
+    if i.KeyCode == Enum.KeyCode.RightShift then frame.Visible = not frame.Visible end
+    updateDirection()
 end)
 
 UIS.InputEnded:Connect(function(i)
-	if i.KeyCode == Enum.KeyCode.W then controls.W = false end
-	if i.KeyCode == Enum.KeyCode.A then controls.A = false end
-	if i.KeyCode == Enum.KeyCode.S then controls.S = false end
-	if i.KeyCode == Enum.KeyCode.D then controls.D = false end
-	if i.KeyCode == Enum.KeyCode.Space then controls.Space = false end
-	if i.KeyCode == Enum.KeyCode.LeftShift then controls.Shift = false end
-	updateDirection()
+    if i.KeyCode == Enum.KeyCode.W then controls.W = false end
+    if i.KeyCode == Enum.KeyCode.A then controls.A = false end
+    if i.KeyCode == Enum.KeyCode.S then controls.S = false end
+    if i.KeyCode == Enum.KeyCode.D then controls.D = false end
+    if i.KeyCode == Enum.KeyCode.Space then controls.Space = false end
+    if i.KeyCode == Enum.KeyCode.LeftShift then controls.Shift = false end
+    updateDirection()
 end)
 
--- Infinite Jump
 lp.CharacterAdded:Connect(function(c)
-	c:WaitForChild("Humanoid")
-	char = c
-	hrp = c:WaitForChild("HumanoidRootPart")
-	hum = c:WaitForChild("Humanoid")
+    c:WaitForChild("Humanoid")
+    char = c
+    hrp = c:WaitForChild("HumanoidRootPart")
+    hum = c:WaitForChild("Humanoid")
 end)
 
 UIS.JumpRequest:Connect(function()
-	if infiniteJump then
-		hrp.Velocity = Vector3.new(0, hum.JumpPower, 0)
-	end
+    if infiniteJump then
+        hrp.Velocity = Vector3.new(0, hum.JumpPower, 0)
+    end
 end)
 
--- Fly loop
 RunService.RenderStepped:Connect(function(dt)
-	if flying then
-		hrp.Anchored = true
-		hrp.CFrame += direction * speed * dt
-	end
+    if flying then
+        hrp.Anchored = true
+        hrp.CFrame += direction * speed * dt
+    end
 end)
